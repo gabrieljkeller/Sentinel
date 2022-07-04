@@ -110,6 +110,8 @@ random:
     retain target: false
     # Whether to prevent block damage caused by Sentinel weapons.
     prevent explosion block damage: true
+    # Whether to use experimental damage calculation (1.19+)
+    experimental damage: false
 
 # How fast to recalculate, in ticks.
 update rate: 10

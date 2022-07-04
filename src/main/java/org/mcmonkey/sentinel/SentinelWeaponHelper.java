@@ -5,8 +5,10 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.*;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -19,6 +21,7 @@ import org.mcmonkey.sentinel.targeting.SentinelTarget;
 import org.mcmonkey.sentinel.utilities.SentinelNMSHelper;
 import org.mcmonkey.sentinel.utilities.SentinelVersionCompat;
 
+import java.util.Collection;
 import java.util.HashMap;
 
 /**

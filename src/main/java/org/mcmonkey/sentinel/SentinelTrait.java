@@ -22,6 +22,7 @@ import net.citizensnpcs.trait.waypoint.Waypoints;
 import net.citizensnpcs.util.NMS;
 import net.citizensnpcs.util.PlayerAnimation;
 import org.bukkit.*;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.*;
@@ -31,7 +32,9 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
@@ -771,7 +774,7 @@ public class SentinelTrait extends Trait {
             isBlocking = false;
             return false;
         }
-        if (!SentinelUtilities.isLookingTowards(getLivingEntity().getEyeLocation(), damager.getLocation(), 45, 45)) {
+        if (!SentinelUtilities.isLookingTowards(getLivingEntity().getEyeLocation(), damager.getLocation(), 90, 90)) {
             return false;
         }
         if (SentinelVersionCompat.v1_14 && damager instanceof Arrow && ((Arrow) damager).getPierceLevel() > 0) {
@@ -782,7 +785,7 @@ public class SentinelTrait extends Trait {
         }
         ItemStack held = damager instanceof LivingEntity ? SentinelUtilities.getHeldItem((LivingEntity) damager) : null;
         if (held != null && SentinelVersionCompat.AXE_MATERIALS.contains(held.getType())) {
-            if (!(damager instanceof Player) || ((Player) damager).isSprinting() || SentinelUtilities.random.nextInt(4) == 1) {
+            if (damager instanceof Player) { // Currently, in 1.19, all hits from an axe cause shield to be disabled
                 shieldAxeCooldown = stats_ticksSpawned + (20 * 5);
             }
         }
@@ -816,21 +819,63 @@ public class SentinelTrait extends Trait {
                         + " once you're done configuring the NPC, if you want it to be able to attack you.");
             }
         }
-        double armorLevel = getArmor(getLivingEntity());
-        if (hitIsBlocked(event.getDamager())) {
-            armorLevel = (1.0 - armorLevel) * 0.5 + armorLevel;
-        }
-        if (!event.isApplicable(EntityDamageEvent.DamageModifier.ARMOR)) {
-            event.setDamage(EntityDamageEvent.DamageModifier.BASE, (1.0 - armorLevel) * event.getDamage(EntityDamageEvent.DamageModifier.BASE));
-        }
-        else {
-            event.setDamage(EntityDamageEvent.DamageModifier.ARMOR, -armorLevel * event.getDamage(EntityDamageEvent.DamageModifier.BASE));
-        }
-        for (EntityDamageEvent.DamageModifier modifier : modifiersToZero) {
-            if (event.isApplicable(modifier)) {
-                event.setDamage(modifier, 0);
+
+        if(SentinelPlugin.instance.useExperimentalDamage){
+            LivingEntity e = getLivingEntity();
+            double damage = event.getDamage();
+            double armor = e.getAttribute(Attribute.GENERIC_ARMOR) !=null ? e.getAttribute(Attribute.GENERIC_ARMOR).getValue() : 0;
+            double toughness  = e.getAttribute(Attribute.GENERIC_ARMOR_TOUGHNESS) !=null ? e.getAttribute(Attribute.GENERIC_ARMOR_TOUGHNESS).getValue() : 0;
+            double knockbackResistance = e.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE) !=null ? e.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE).getValue() : 0;
+//
+            if (hitIsBlocked(event.getDamager())) {
+                event.setDamage(0);
+                event.setCancelled(true);
+                allowKnockback = false;
+                // Play shield sound (this doesn't happen in vanilla when other players block your attack,
+                // but this helps to clarify why the NPC didn't take any damage (and not make people blame lag etc)
+                e.getWorld().playSound(e.getLocation(), Sound.ITEM_SHIELD_BLOCK, 2, 1);
+            }
+            else{
+            // All of this code is here just in case it is needed -- however, Minecraft seems to calculate damage manually, so this is not necessary!
+//            double armorMultiplier = 0;
+//            // From https://minecraft.fandom.com/wiki/Armor#Mechanics
+//            if(event.isApplicable(EntityDamageEvent.DamageModifier.ARMOR))
+//                armorMultiplier = Math.min(20, Math.max(armor/5D, armor - ((4D * damage)/(toughness + 8D))))/25D;
+//
+//            // TODO: Fire Prot, Blast Prot, Proj Prot, Feather Falling
+//            // TODO: effects
+//
+//            // From https://minecraft.fandom.com/wiki/Protection
+//            double protectionMultiplier = 0;
+//            if(e instanceof HumanEntity){
+//                int protection = SentinelUtilities.getProtectionLevel((HumanEntity) e);
+//
+//                protectionMultiplier = Math.max(.8, 1 - (.04 * protection));
+//            }
+//
+//            damage *= 1 - (armorMultiplier + protectionMultiplier - (armorMultiplier * protectionMultiplier));
+
+                event.setDamage(damage);
             }
         }
+        else{
+            double armorLevel = getArmor(getLivingEntity());
+            if (hitIsBlocked(event.getDamager())) {
+                armorLevel = (1.0 - armorLevel) * 0.5 + armorLevel;
+            }
+            if (!event.isApplicable(EntityDamageEvent.DamageModifier.ARMOR)) {
+                event.setDamage(EntityDamageEvent.DamageModifier.BASE, (1.0 - armorLevel) * event.getDamage(EntityDamageEvent.DamageModifier.BASE));
+            }
+            else {
+                event.setDamage(EntityDamageEvent.DamageModifier.ARMOR, -armorLevel * event.getDamage(EntityDamageEvent.DamageModifier.BASE));
+            }
+            for (EntityDamageEvent.DamageModifier modifier : modifiersToZero) {
+                if (event.isApplicable(modifier)) {
+                    event.setDamage(modifier, 0);
+                }
+            }
+        }
+
         if (!allowKnockback) {
             getLivingEntity().setVelocity(VECTOR_ZERO);
             Bukkit.getScheduler().scheduleSyncDelayedTask(SentinelPlugin.instance, () -> {
@@ -845,6 +890,7 @@ public class SentinelTrait extends Trait {
      * Called when this sentinel attacks something, to correct damage handling.
      */
     public void whenAttacksAreHappeningFromMe(EntityDamageByEntityEvent event) {
+        if(event.getEntity().isInvulnerable()) return;
         if (event.isCancelled()) {
             return;
         }
@@ -881,11 +927,24 @@ public class SentinelTrait extends Trait {
             event.setCancelled(true);
             return;
         }
-        double damage = getDamage(false);
-        if (SentinelPlugin.debugMe) {
-            debug("correct base damage to " + damage);
+
+        if(SentinelPlugin.instance.useExperimentalDamage){
+            boolean criticalHit = false;
+            LivingEntity entity = getLivingEntity();
+            // check if crit hit: from https://www.spigotmc.org/threads/check-if-a-hit-is-a-critical-hit.187105/
+            if(entity.getFallDistance() > 0.0F && !entity.isOnGround() && !entity.hasPotionEffect(PotionEffectType.BLINDNESS) && entity.getVehicle() == null) criticalHit = true;
+
+            double damage = getDamageNew(false, criticalHit);
+
+            event.setDamage(EntityDamageEvent.DamageModifier.BASE, damage);
         }
-        event.setDamage(EntityDamageEvent.DamageModifier.BASE, damage);
+        else{
+            double damage = getDamage(false);
+            if (SentinelPlugin.debugMe) {
+                debug("correct base damage to " + damage);
+            }
+            event.setDamage(EntityDamageEvent.DamageModifier.BASE, damage);
+        }
     }
 
     /**
@@ -1225,6 +1284,59 @@ public class SentinelTrait extends Trait {
         }
     }
 
+    public double getDamageNew(boolean forRangedAttacks, boolean critical){
+        ItemStack weapon = itemHelper.getHeldItem();
+        return getDamageNew(forRangedAttacks, critical, weapon);
+    }
+
+    /**
+     * New method for calculating NPC damage; more similar to vanilla
+     */
+    public double getDamageNew(boolean forRangedAttacks, boolean critical, ItemStack weapon) {
+        if (damage >= 0) return damage;
+        if (weapon == null) return 1;
+
+        Double customDamage = weaponDamage.get(weapon.getType().name().toLowerCase());
+        if (customDamage != null) {
+            damage = customDamage;
+        }
+
+        Material weaponType = weapon.getType();
+        if (SentinelVersionCompat.BOW_MATERIALS.contains(weaponType)) {
+            if (!forRangedAttacks) {
+                return 1;
+            }
+            // True calculation: https://minecraft.fandom.com/wiki/Power
+            // Power I: 50% more, Power II: 75% more, etc. (start at .5, add .25 per extra level)
+            return 6 * (1 + (weapon.getItemMeta() == null || !weapon.getItemMeta().hasEnchant(Enchantment.ARROW_DAMAGE)
+                    ? 0 : .5 + (weapon.getItemMeta().getEnchantLevel(Enchantment.ARROW_DAMAGE) - 1 * 0.25)));
+        }
+
+        double baseDamage = 1 + SentinelUtilities.getAttributeOrDefault(weapon, Attribute.GENERIC_ATTACK_DAMAGE, EquipmentSlot.HAND);
+
+        // From https://minecraft.fandom.com/wiki/Damage#Critical_hit
+        if(critical){
+            baseDamage *= 1.50;
+        }
+
+        if(weapon.getItemMeta() != null && weapon.getItemMeta().hasEnchant(Enchantment.DAMAGE_ALL)){
+            // Calculation from https://minecraft.fandom.com/wiki/Sharpness
+            // TODO Smite, Bane of Arthropods (make another method but with specifying target)
+            // TODO effects
+            baseDamage += .5 + (.5 * weapon.getItemMeta().getEnchantLevel(Enchantment.DAMAGE_ALL));
+        }
+
+        return baseDamage;
+    }
+
+    /**
+     * New method for calculating NPC armor; more similar to vanilla
+     */
+    public double getArmorNew(LivingEntity entity){
+        return (entity.getAttribute(Attribute.GENERIC_ARMOR) == null ? 0 : entity.getAttribute(Attribute.GENERIC_ARMOR).getValue());
+    }
+
+//    public double damageAfterArmorNew()
     /**
      * Gets the NPC's current damage value (based on held weapon if calculation is required).
      */

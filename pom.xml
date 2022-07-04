@@ -21,12 +21,16 @@
     <repositories>
         <repository>
             <id>citizens-repo</id>
-            <url>http://repo.citizensnpcs.co</url>
+            <url>https://repo.citizensnpcs.co</url>
         </repository>
         <repository>
             <id>FreneticLLC-public</id>
             <name>FreneticLLC Maven Server</name>
             <url>https://maven.freneticllc.com/</url>
+        </repository>
+        <repository>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
     </repositories>
 

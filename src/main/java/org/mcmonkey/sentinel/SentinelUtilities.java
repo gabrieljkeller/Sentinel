@@ -3,14 +3,17 @@ package org.mcmonkey.sentinel;
 import net.citizensnpcs.api.CitizensAPI;
 import net.citizensnpcs.api.ai.EntityTarget;
 import org.bukkit.*;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.inventory.EntityEquipment;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.*;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
@@ -569,5 +572,90 @@ public class SentinelUtilities {
             return false;
         }
         return checkLineOfSightWithTransparency(hit, end);
+    }
+
+    // Calculations can be found here: https://minecraft.fandom.com/wiki/Attribute
+    // Please correct if wrong! This doesn't calculate things in the exact order as this page claims the game does
+    // This is part of the experimental combat damage calculator
+    public static double getAttributeOrDefault(ItemStack item, Attribute attribute, EquipmentSlot slot){
+        double value = 0;
+        double totalMultiplier = 1;
+        double additiveMultiplier = 1;
+
+        if(item.getItemMeta() != null && item.getItemMeta().getAttributeModifiers() != null){
+            if(item.getItemMeta().getAttributeModifiers().containsKey(attribute)){
+                Collection<AttributeModifier> modifiers = item.getItemMeta().getAttributeModifiers().get(attribute);
+                for(AttributeModifier modifier : modifiers){
+                    switch(modifier.getOperation()){
+                        case ADD_NUMBER:
+                            value += modifier.getAmount();
+                            break;
+                        case ADD_SCALAR:
+                            additiveMultiplier += modifier.getAmount();
+                            break;
+                        case MULTIPLY_SCALAR_1:
+                            totalMultiplier *= (1 + modifier.getAmount());
+                    }
+                }
+            }
+        }
+
+        for(AttributeModifier modifier : item.getType().getDefaultAttributeModifiers(slot).get(attribute)){
+            switch(modifier.getOperation()) {
+                case ADD_NUMBER:
+                    value += modifier.getAmount();
+                    break;
+                case ADD_SCALAR:
+                    additiveMultiplier += modifier.getAmount();
+                    break;
+                case MULTIPLY_SCALAR_1:
+                    totalMultiplier *= (1 + modifier.getAmount());
+            }
+        }
+
+        value = value * additiveMultiplier * totalMultiplier;
+
+        return value;
+    }
+
+    // For some reason there's no tag for armor in the Tags class
+    private static final List<Material> ARMOR_TAG = Arrays.asList(
+            Material.LEATHER_HELMET, Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS,
+            Material.GOLDEN_HELMET, Material.GOLDEN_CHESTPLATE, Material.GOLDEN_LEGGINGS, Material.GOLDEN_BOOTS,
+            Material.IRON_HELMET, Material.IRON_CHESTPLATE, Material.IRON_LEGGINGS, Material.IRON_BOOTS,
+            Material.DIAMOND_HELMET, Material.DIAMOND_CHESTPLATE, Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS,
+            Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE, Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS,
+            Material.CHAINMAIL_HELMET, Material.CHAINMAIL_CHESTPLATE, Material.CHAINMAIL_LEGGINGS, Material.CHAINMAIL_BOOTS,
+            Material.TURTLE_HELMET
+            );
+    public static int getProtectionLevel(HumanEntity e){
+        int level = 0;
+        PlayerInventory inv = e.getInventory();
+
+        ItemStack helmet = inv.getHelmet();
+        if(helmet != null && ARMOR_TAG.contains(helmet.getType())){
+            if(helmet.getItemMeta() != null && helmet.getItemMeta().hasEnchant(Enchantment.PROTECTION_ENVIRONMENTAL))
+                level += helmet.getItemMeta().getEnchantLevel(Enchantment.PROTECTION_ENVIRONMENTAL);
+        }
+
+        ItemStack chestplate = inv.getChestplate();
+        if(chestplate != null && ARMOR_TAG.contains(chestplate.getType())){
+            if(chestplate.getItemMeta() != null && chestplate.getItemMeta().hasEnchant(Enchantment.PROTECTION_ENVIRONMENTAL))
+                level += chestplate.getItemMeta().getEnchantLevel(Enchantment.PROTECTION_ENVIRONMENTAL);
+        }
+
+        ItemStack leggings = inv.getLeggings();
+        if(leggings != null && ARMOR_TAG.contains(leggings.getType())){
+            if(leggings.getItemMeta() != null && leggings.getItemMeta().hasEnchant(Enchantment.PROTECTION_ENVIRONMENTAL))
+                level += leggings.getItemMeta().getEnchantLevel(Enchantment.PROTECTION_ENVIRONMENTAL);
+        }
+
+        ItemStack boots = inv.getBoots();
+        if(boots != null && ARMOR_TAG.contains(boots.getType())){
+            if(boots.getItemMeta() != null && boots.getItemMeta().hasEnchant(Enchantment.PROTECTION_ENVIRONMENTAL))
+                level += boots.getItemMeta().getEnchantLevel(Enchantment.PROTECTION_ENVIRONMENTAL);
+        }
+
+        return level;
     }
 }

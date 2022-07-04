@@ -192,6 +192,11 @@ public class SentinelPlugin extends JavaPlugin {
     public boolean preventExplosionBlockDamage;
 
     /**
+     * Configuration option: use experimental damage calculation
+     */
+    public boolean useExperimentalDamage;
+
+    /**
      * Configuration option: time until arrow cleanup.
      */
     public int arrowCleanupTime;
@@ -285,6 +290,7 @@ public class SentinelPlugin extends JavaPlugin {
         arrowCleanupTime = getConfig().getInt("random.arrow cleanup time", 200);
         blockSunburn = getConfig().getBoolean("random.block sunburn", true);
         preventExplosionBlockDamage = getConfig().getBoolean("random.prevent explosion block damage", true);
+        useExperimentalDamage = getConfig().getBoolean("random.experimental damage", false);
         tickRate = getConfig().getInt("update rate", 10);
     }
 
