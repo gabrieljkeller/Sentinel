@@ -643,6 +643,7 @@ public class SentinelTrait extends Trait {
         if (SentinelPlugin.debugMe && !isBlocking) {
             debug("I'm scared! I'll block with my shield!");
         }
+
         isBlocking = true;
         PlayerAnimation.START_USE_OFFHAND_ITEM.play((Player) getLivingEntity());
         autoSpeedModifier();
@@ -662,6 +663,7 @@ public class SentinelTrait extends Trait {
         if (!npc.isSpawned() || !(getLivingEntity() instanceof Player) || !itemHelper.hasShield()) {
             return;
         }
+
         PlayerAnimation.STOP_USE_ITEM.play((Player) getLivingEntity());
         autoSpeedModifier();
     }
@@ -826,16 +828,7 @@ public class SentinelTrait extends Trait {
             double armor = e.getAttribute(Attribute.GENERIC_ARMOR) !=null ? e.getAttribute(Attribute.GENERIC_ARMOR).getValue() : 0;
             double toughness  = e.getAttribute(Attribute.GENERIC_ARMOR_TOUGHNESS) !=null ? e.getAttribute(Attribute.GENERIC_ARMOR_TOUGHNESS).getValue() : 0;
             double knockbackResistance = e.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE) !=null ? e.getAttribute(Attribute.GENERIC_KNOCKBACK_RESISTANCE).getValue() : 0;
-//
-            if (hitIsBlocked(event.getDamager())) {
-                event.setDamage(0);
-                event.setCancelled(true);
-                allowKnockback = false;
-                // Play shield sound (this doesn't happen in vanilla when other players block your attack,
-                // but this helps to clarify why the NPC didn't take any damage (and not make people blame lag etc)
-                e.getWorld().playSound(e.getLocation(), Sound.ITEM_SHIELD_BLOCK, 2, 1);
-            }
-            else{
+
             // All of this code is here just in case it is needed -- however, Minecraft seems to calculate damage manually, so this is not necessary!
 //            double armorMultiplier = 0;
 //            // From https://minecraft.fandom.com/wiki/Armor#Mechanics
@@ -856,7 +849,6 @@ public class SentinelTrait extends Trait {
 //            damage *= 1 - (armorMultiplier + protectionMultiplier - (armorMultiplier * protectionMultiplier));
 
                 event.setDamage(damage);
-            }
         }
         else{
             double armorLevel = getArmor(getLivingEntity());
@@ -1030,6 +1022,18 @@ public class SentinelTrait extends Trait {
                 return;
             }
         }
+
+        if(SentinelPlugin.instance.useExperimentalDamage){
+            if(isMe){
+                if (hitIsBlocked(event.getDamager())) {
+                    event.setCancelled(true);
+                    // Play shield sound (this doesn't happen in vanilla when other players block your attack,
+                    // but this helps to clarify why the NPC didn't take any damage (and not make people blame lag etc)
+                    event.getEntity().getWorld().playSound(event.getEntity().getLocation(), Sound.ITEM_SHIELD_BLOCK, 2, 1);
+                }
+            }
+        }
+
         boolean isKilling = event.getEntity() instanceof LivingEntity && event.getFinalDamage() >= ((LivingEntity) event.getEntity()).getHealth();
         boolean isFriend = getGuarding() != null && event.getEntity().getUniqueId().equals(getGuarding());
         boolean attackerIsMe = damager.getUniqueId().equals(getLivingEntity().getUniqueId());

@@ -291,6 +291,9 @@ public class SentinelPlugin extends JavaPlugin {
         blockSunburn = getConfig().getBoolean("random.block sunburn", true);
         preventExplosionBlockDamage = getConfig().getBoolean("random.prevent explosion block damage", true);
         useExperimentalDamage = getConfig().getBoolean("random.experimental damage", false);
+        if(useExperimentalDamage){
+            getLogger().info("Using experimental damage calculation!");
+        }
         tickRate = getConfig().getInt("update rate", 10);
     }
 

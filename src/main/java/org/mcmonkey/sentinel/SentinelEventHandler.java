@@ -148,6 +148,7 @@ public class SentinelEventHandler implements Listener {
         if (event.isCancelled()) {
             return;
         }
+
         UUID victimUuid = event.getEntity().getUniqueId();
         for (SentinelTrait sentinel : cleanCurrentList()) {
             sentinel.whenSomethingMightDie(victimUuid);
